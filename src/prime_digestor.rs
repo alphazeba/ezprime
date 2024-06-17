@@ -176,7 +176,10 @@ impl DigestNode {
     }
 
     fn to_string(&self) -> String {
-        format!("{}^{}", self.prime_number, self.count)
+        match self.count {
+            1 => format!("{}", self.prime_number),
+            count => format!("{}^{}", self.prime_number, count),
+        }
     }
 }
 
