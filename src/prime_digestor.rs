@@ -1,27 +1,48 @@
-use std::{cell::RefCell, collections::HashMap, rc::Rc};
+use std::{collections::HashMap, rc::Rc};
 
 use crate::input::N;
 const SMALLEST_PRIME: N = 2;
 
 pub struct PrimeDigestor {
-    discovered_prime_numbers: RefCell<HashMap<N,PrimeDigestResult>>,
+    memo: HashMap<N,PrimeDigestResult>,
+    memo_hit: u16,
+    memo_miss: u16,
 }
 
 impl PrimeDigestor {
     pub fn new() -> Self {
         Self {
-            discovered_prime_numbers: RefCell::new(HashMap::new()),
+            memo: HashMap::new(),
+            memo_hit: 0,
+            memo_miss: 0,
         }
     }
 
-    pub fn is_prime(&self, number: N) -> PrimeDigestResult {
-        if self.discovered_prime_numbers.borrow().contains_key(&number) {
-            return self.discovered_prime_numbers
-                .borrow()
+    pub fn metrics_to_string(&self) -> String {
+        let memo_keys = self.memo
+            .keys()
+            .map(|x|x.to_string())
+            .collect::<Vec<String>>()
+            .join(", ");
+        format!("memo hits: {}\nmemo misses: {}\nmemo keys: {}", self.memo_hit, self.memo_miss, memo_keys)
+    }
+
+    pub fn is_prime(&mut self, number: N) -> PrimeDigestResult {
+        if self.memo.contains_key(&number) {
+            self.memo_hit += 1;
+            return self.memo
                 .get(&number)
                 .unwrap()
                 .clone();
         }
+        self.memo_miss += 1;
+        let result = self.internal_calc_if_prime(number);
+        self.memo
+            .insert(number, result.clone());
+        result
+    }
+
+    fn internal_calc_if_prime(&mut self, number: N) -> PrimeDigestResult {
         // a number is prime if anything divides into it.
         // the smallest number that counts is 2
         // the largets number thats possible is sqrt rounded down to a whole number
@@ -30,7 +51,8 @@ impl PrimeDigestor {
         while current_number >= SMALLEST_PRIME {
             if number % current_number == 0 { // divides
                 let next_number = number / current_number;
-                return self.is_prime(next_number).combine(&self.is_prime(current_number));
+                return self.is_prime(next_number)
+                    .combine(&self.is_prime(current_number));
             }
             current_number -= 1;
         }
@@ -130,7 +152,7 @@ impl PrimeDigestResult {
         match self {
             Self::IsPrime(n) => format!("{} is prime.", n),
             Self::NotPrime(n, recipe) =>
-                format!("{} is NOT prime. \nRecipe: {}", n, recipe_to_string(recipe)),
+                format!("{} is NOT prime.\n\nRecipe: {}", n, recipe_to_string(recipe)),
         }
     }
 }
